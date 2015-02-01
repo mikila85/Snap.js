@@ -6,7 +6,7 @@
  * http://opensource.org/licenses/MIT
  *
  * Github:  http://github.com/jakiestfu/Snap.js/
- * Version: 1.9.3
+ * Version: 1.9.2
  */
 /*jslint browser: true*/
 /*global define, module, ender*/
@@ -28,7 +28,7 @@
             tapToClose: true,
             touchToDrag: true,
             slideIntent: 40, // degrees
-            minDragDistance: 5
+            minDragDistance: 20
         },
         cache = {
             simpleStates: {
@@ -47,13 +47,18 @@
         },
         eventList = {},
         utils = {
-            hasTouch: ('ontouchstart' in doc.documentElement || win.navigator.msPointerEnabled),
+
+            hasTouch: (doc.ontouchstart === null),
             eventType: function(action) {
                 var eventTypes = {
-                        down: (utils.hasTouch ? 'touchstart' : 'mousedown'),
+						down: ('touchstart'),
+                        move: ('touchmove'),
+                        up: ('touchend'),
+                        out: ('touchcancel')
+                      /*down: (utils.hasTouch ? 'touchstart' : 'mousedown'),
                         move: (utils.hasTouch ? 'touchmove' : 'mousemove'),
                         up: (utils.hasTouch ? 'touchend' : 'mouseup'),
-                        out: (utils.hasTouch ? 'touchcancel' : 'mouseout')
+                        out: (utils.hasTouch ? 'touchcancel' : 'mouseout')*/
                     };
                 return eventTypes[action];
             },
@@ -216,9 +221,20 @@
                        }
                 },
                 x: function(n) {
-                    if( (settings.disable==='left' && n>0) ||
-                        (settings.disable==='right' && n<0)
-                    ){ return; }
+                    // if( (settings.disable==='left' && n>0) ||
+                        // (settings.disable==='right' && n<0)
+                    // ){ n=0;}//return; }
+					
+					if (n > settings.maxPosition) {
+						//cache.translation = 0;
+						n = settings.maxPosition;
+						
+						//console.log("a",cache.translation);
+					}
+					if (n <= 0) {
+						//console.log(cache.translation);
+						n =  0;
+					}
                     
                     if( !settings.hyperextensible ){
                         if( n===settings.maxPosition || n>settings.maxPosition ){
@@ -350,7 +366,7 @@
                             (settings.minDragDistance>=Math.abs(thePageX-cache.startDragX)) || // Has user met minimum drag distance?
                             (cache.hasIntent === false)
                         ) {
-                            return;
+                            //return;
                         }
 
                         utils.events.prevent(e);
@@ -414,6 +430,7 @@
                     }
                 },
                 endDrag: function(e) {
+					var isClosing = true;
                     if (cache.isDragging) {
                         utils.dispatchEvent('end');
                         var translated = action.translate.get.matrix(4);
@@ -430,6 +447,7 @@
 
                         // Revealing Left
                         if (cache.simpleStates.opening === 'left') {
+							
                             // Halfway, Flicking, or Too Far Out
                             if ((cache.simpleStates.halfway || cache.simpleStates.hyperExtending || cache.simpleStates.flick)) {
                                 if (cache.simpleStates.flick && cache.simpleStates.towards === 'left') { // Flicking Closed
@@ -438,11 +456,15 @@
                                     (cache.simpleStates.flick && cache.simpleStates.towards === 'right') || // Flicking Open OR
                                     (cache.simpleStates.halfway || cache.simpleStates.hyperExtending) // At least halfway open OR hyperextending
                                 ) {
+									isClosing = false;
+									cache.translation = settings.maxPosition;
                                     action.translate.easeTo(settings.maxPosition); // Open Left
                                 }
                             } else {
                                 action.translate.easeTo(0); // Close Left
                             }
+							
+							
                             // Revealing Right
                         } else if (cache.simpleStates.opening === 'right') {
                             // Halfway, Flicking, or Too Far Out
@@ -459,6 +481,9 @@
                                 action.translate.easeTo(0); // Close Right
                             }
                         }
+						if(isClosing){
+							cache.translation = 0;
+						}
                         cache.isDragging = false;
                         cache.startDragX = utils.page('X', e);
                     }
